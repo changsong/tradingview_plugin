@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "TradingView 批量回测助手",
+  "version": "0.1.0",
+  "description": "从 TradingView 筛选器批量运行策略回测并导出结果为 CSV。",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.tradingview.com/*",
+    "https://cn.tradingview.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "TradingView 批量回测",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.tradingview.com/*",
+        "https://cn.tradingview.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+
+
