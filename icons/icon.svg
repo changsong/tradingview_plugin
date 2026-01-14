@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect x="0" y="0" width="128" height="128" rx="24" fill="#0f172a"/>
+  <!-- TV 文本 -->
+  <text x="24" y="56" fill="#38bdf8" font-size="40" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700">
+    TV
+  </text>
+  <!-- 批量/回测，勾号 -->
+  <rect x="72" y="32" width="32" height="32" rx="8" fill="#1e293b"/>
+  <polyline points="78,48 86,56 98,40" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 下方细线表示 K 线/时间轴 -->
+  <line x1="24" y1="86" x2="104" y2="86" stroke="#334155" stroke-width="3" stroke-linecap="round"/>
+  <rect x="30" y="78" width="6" height="16" rx="2" fill="#64748b"/>
+  <rect x="48" y="72" width="6" height="22" rx="2" fill="#6366f1"/>
+  <rect x="66" y="80" width="6" height="14" rx="2" fill="#22c55e"/>
+  <rect x="84" y="74" width="6" height="20" rx="2" fill="#f97316"/>
+</svg>
