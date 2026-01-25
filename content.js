@@ -104,42 +104,6 @@ function fireKey(el, key) {
   el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
 }
 
-function openContextMenu(target) {
-  if (!target) return false;
-  const rect = target.getBoundingClientRect();
-  const clientX = rect.left + rect.width / 2;
-  const clientY = rect.top + rect.height / 2;
-  const common = {
-    bubbles: true,
-    composed: true,
-    clientX,
-    clientY,
-    screenX: clientX,
-    screenY: clientY,
-    view: window,
-    button: 2,
-    buttons: 2
-  };
-  target.dispatchEvent(new MouseEvent("mousedown", common));
-  target.dispatchEvent(new MouseEvent("mouseup", common));
-  target.dispatchEvent(new MouseEvent("contextmenu", common));
-  return true;
-}
-
-function clickFirstContextMenuItem() {
-  const menu =
-    document.querySelector('[role="menu"]') ||
-    document.querySelector('[data-name="context-menu"]') ||
-    document.querySelector(".context-menu");
-  if (!menu) return false;
-  const item =
-    menu.querySelector('[role="menuitem"]') ||
-    menu.querySelector("button") ||
-    menu.querySelector("div");
-  if (!item) return false;
-  item.click();
-  return true;
-}
 
 function isWatchlistRowSelected(row) {
   if (!row) return false;
@@ -697,23 +661,14 @@ async function runBatchOnScreenerPage() {
 
       if (target) {
         // 选中目标行
-        logWithTime(`${symbol} 右键触发目标已确认`);
+        logWithTime(`${symbol} 触发目标已确认`);
         clickWatchlistRow(targetRow);
         if (typeof target.focus === "function") {
           target.setAttribute("tabindex", "-1");
           target.focus();
         }
-        // 触发右键菜单并点击第一个项
-        const activeInfo = document.activeElement
-          ? `${document.activeElement.tagName}.${document.activeElement.className || ""}`
-          : "none";
-        logWithTime(`${symbol} 打开右键菜单, active=${activeInfo}`);
-        openContextMenu(target);
-        await sleep(120);
-        const clicked = clickFirstContextMenuItem();
-        logWithTime(`${symbol} 点击右键第一个菜单项=${clicked}`);
       }
-      logWithTime(`${symbol} 低于阈值，触发右键菜单第一个项`);
+      logWithTime(`${symbol} 低于阈值，已标记`);
     }
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
       results.push({
