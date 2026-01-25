@@ -80,19 +80,23 @@ function clickWatchlistRow(row) {
   const target = clickable instanceof HTMLElement ? clickable : row;
   const symbolText = target.querySelector(".symbolNameText-RsFlttSS");
 
-  const fireClick = (el) => {
+  const fireClickAt = (el) => {
     if (!el) return;
-    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-    el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-    el.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const rect = el.getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+    const opts = { bubbles: true, clientX, clientY, view: window };
+    el.dispatchEvent(new PointerEvent("pointerdown", opts));
+    el.dispatchEvent(new MouseEvent("mousedown", opts));
+    el.dispatchEvent(new MouseEvent("mouseup", opts));
+    el.dispatchEvent(new MouseEvent("click", opts));
   };
 
   target.scrollIntoView({ block: "center" });
   if (symbolText) {
-    fireClick(symbolText);
+    fireClickAt(symbolText);
   }
-  fireClick(target);
+  fireClickAt(target);
   return true;
 }
 
