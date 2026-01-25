@@ -564,14 +564,20 @@ async function runBatchOnScreenerPage() {
 
   const settings = await getSettings();
   const maxSymbols = settings.maxSymbols || 5000;
-  let rows = detectWatchlistRows("A股可交易", maxSymbols);
+  const watchlistNames = ["A股可交易", "美股可交易"];
+  let rows = detectWatchlistRows(watchlistNames[0], maxSymbols);
   let source = "watchlist";
+  let watchlistName = watchlistNames[0];
+  if (!rows.length) {
+    rows = detectWatchlistRows(watchlistNames[1], maxSymbols);
+    watchlistName = watchlistNames[1];
+  }
   if (!rows.length) {
     rows = detectScreenerRows(maxSymbols);
     source = "screener";
   }
   if (!rows.length) {
-    alert("未在当前页面找到 A股可交易 监视列表或筛选器表格。");
+    alert("未在当前页面找到 A股可交易 / 美股可交易 监视列表或筛选器表格。");
     isRunningBatch = false;
     return;
   }
@@ -608,7 +614,7 @@ async function runBatchOnScreenerPage() {
     let targetRow = null;
 
     if (source === "watchlist") {
-      const currentRows = detectWatchlistRows("A股可交易", maxSymbols);
+      const currentRows = detectWatchlistRows(watchlistName, maxSymbols);
       targetRow = currentRows[i];
       const symbolFromRow = targetRow ? extractSymbolFromRow(targetRow) : "";
       const inputSwitched = symbolFromRow ? setSymbolViaHeaderInput(symbolFromRow) : false;
