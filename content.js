@@ -15,7 +15,15 @@ function getTextContent(el) {
 }
 
 function logWithTime(...args) {
-  const ts = new Date().toISOString();
+  const now = new Date();
+  const tzOffsetMs = 8 * 60 * 60 * 1000;
+  const bj = new Date(now.getTime() + tzOffsetMs);
+  const pad = (num) => String(num).padStart(2, "0");
+  const ts = `${bj.getUTCFullYear()}-${pad(bj.getUTCMonth() + 1)}-${pad(
+    bj.getUTCDate()
+  )} ${pad(bj.getUTCHours())}:${pad(bj.getUTCMinutes())}:${pad(
+    bj.getUTCSeconds()
+  )}`;
   console.log(`[${ts}]`, ...args);
 }
 
@@ -98,15 +106,15 @@ function fireKey(el, key) {
 
 function fireAltEnter(el) {
   if (!el) return false;
-  const eventInit = {
-    bubbles: true,
-    key: "Enter",
-    code: "Enter",
-    altKey: true,
-    view: window
-  };
-  el.dispatchEvent(new KeyboardEvent("keydown", eventInit));
-  el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
+  const base = { bubbles: true, view: window, altKey: true };
+  el.dispatchEvent(new KeyboardEvent("keydown", { ...base, key: "Alt", code: "AltLeft" }));
+  el.dispatchEvent(
+    new KeyboardEvent("keydown", { ...base, key: "Enter", code: "Enter" })
+  );
+  el.dispatchEvent(
+    new KeyboardEvent("keyup", { ...base, key: "Enter", code: "Enter" })
+  );
+  el.dispatchEvent(new KeyboardEvent("keyup", { ...base, key: "Alt", code: "AltLeft" }));
   return true;
 }
 
@@ -592,6 +600,7 @@ async function runBatchOnScreenerPage() {
       let selected = false;
       if (source === "watchlist") {
         if (targetRow) {
+          logWithTime(`${symbol} 触发 Alt+Enter 前重新点击行`);
           clickWatchlistRow(targetRow);
           await sleep(80);
         }
@@ -604,8 +613,10 @@ async function runBatchOnScreenerPage() {
 
       if (target) {
          // 选中目标行
+        logWithTime(`${symbol} Alt+Enter 触发目标已确认`);
         clickWatchlistRow(targetRow);
         // 触发 Alt+Enter
+        logWithTime(`${symbol} 发送 Alt+Enter 快捷键`);
         fireAltEnter(target);
       } 
       logWithTime(`${symbol} 低于阈值，触发 Alt+Enter`);
