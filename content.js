@@ -71,6 +71,21 @@ function detectWatchlistRows(listName, maxSymbols) {
   return items.slice(0, maxSymbols);
 }
 
+function clickWatchlistRow(row) {
+  if (!row) return false;
+  const clickable =
+    row.closest(".wrap-IEe5qpW4") ||
+    row.querySelector(".symbol-RsFlttSS") ||
+    row;
+  const target = clickable instanceof HTMLElement ? clickable : row;
+  target.scrollIntoView({ block: "center" });
+  target.click();
+  // 触发一次鼠标事件，提升命中率
+  target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  return true;
+}
+
 function detectScreenerRows(maxSymbols) {
   // 这里假设你在 TradingView「筛选器」页面，主表格里每一行代表一个标的。
   // TradingView HTML 经常变化，因此选择器可能需要你自己稍后微调。
@@ -316,8 +331,7 @@ async function runBatchOnScreenerPage() {
       const currentRows = detectWatchlistRows("A股可交易", maxSymbols);
       const targetRow = currentRows[i];
       if (targetRow) {
-        targetRow.scrollIntoView({ block: "center" });
-        targetRow.click();
+        clickWatchlistRow(targetRow);
       }
     } else {
       // 简化实现：直接在当前 tab 中切换 symbol，避免频繁开新 tab（更稳定）
