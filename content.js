@@ -507,7 +507,7 @@ async function runBatchOnScreenerPage() {
   isRunningBatch = true;
 
   const settings = await getSettings();
-  const maxSymbols = settings.maxSymbols || 50;
+  const maxSymbols = settings.maxSymbols || 5000;
   let rows = detectWatchlistRows("A股可交易", maxSymbols);
   let source = "watchlist";
   if (!rows.length) {
@@ -549,10 +549,11 @@ async function runBatchOnScreenerPage() {
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
     logWithTime(`开始处理第 ${i + 1}/${symbols.length} 个标的: ${symbol}`);
+    let targetRow = null;
 
     if (source === "watchlist") {
       const currentRows = detectWatchlistRows("A股可交易", maxSymbols);
-      const targetRow = currentRows[i];
+      targetRow = currentRows[i];
       const symbolFromRow = targetRow ? extractSymbolFromRow(targetRow) : "";
       const inputSwitched = symbolFromRow ? setSymbolViaHeaderInput(symbolFromRow) : false;
       if (!inputSwitched) {
@@ -590,13 +591,23 @@ async function runBatchOnScreenerPage() {
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 12) {
       let selected = false;
       if (source === "watchlist") {
+        if (targetRow) {
+          clickWatchlistRow(targetRow);
+          await sleep(80);
+        }
         selected = await ensureWatchlistSelected(result.symbol || symbol);
       }
       if (!selected) {
         document.body?.focus();
       }
-      const target = document.activeElement || getWatchlistListContainer() || document.body;
-      fireAltEnter(target);
+      const target = targetRow ;
+
+      if (target) {
+         // 选中目标行
+        clickWatchlistRow(targetRow);
+        // 触发 Alt+Enter
+        fireAltEnter(target);
+      } 
       logWithTime(`${symbol} 低于阈值，触发 Alt+Enter`);
     }
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
