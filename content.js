@@ -127,6 +127,49 @@ async function selectWatchlistByScrollAndClick(listContainer, symbol, index) {
   return false;
 }
 
+async function collectWatchlistSymbols(maxSymbols) {
+  const listContainer = getWatchlistListContainer();
+  if (!listContainer) return [];
+
+  const firstRow = listContainer.querySelector(".symbol-RsFlttSS");
+  const rowHeight = firstRow?.getBoundingClientRect().height || 30;
+  const step = Math.max(rowHeight * 10, 150);
+  const seen = new Set();
+  let unchangedRounds = 0;
+  let lastSeenSize = 0;
+
+  for (let scrollTop = 0; scrollTop <= listContainer.scrollHeight; scrollTop += step) {
+    listContainer.scrollTop = scrollTop;
+    await sleep(120);
+    const rows = Array.from(
+      listContainer.querySelectorAll(".symbol-RsFlttSS[data-symbol-short], .symbol-RsFlttSS[data-symbol-full]")
+    );
+    for (const row of rows) {
+      const symbol = extractSymbolFromRow(row);
+      if (symbol) {
+        seen.add(symbol);
+        if (seen.size >= maxSymbols) {
+          return Array.from(seen);
+        }
+      }
+    }
+
+    if (seen.size === 0) continue;
+    if (seen.size === lastSeenSize) {
+      unchangedRounds += 1;
+    } else {
+      unchangedRounds = 0;
+    }
+    lastSeenSize = seen.size;
+
+    if (unchangedRounds >= 3) {
+      break;
+    }
+  }
+
+  return Array.from(seen);
+}
+
 function clickWatchlistRow(row) {
   if (!row) return false;
   const wrap = row.closest(".wrap-IEe5qpW4");
@@ -412,11 +455,15 @@ async function runBatchOnScreenerPage() {
     return;
   }
 
-  const symbols = [];
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const symbol = extractSymbolFromRow(row) || getTextContent(row).split(/\s+/)[0];
-    if (symbol) symbols.push(symbol);
+  let symbols = [];
+  if (source === "watchlist") {
+    symbols = await collectWatchlistSymbols(maxSymbols);
+  } else {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const symbol = extractSymbolFromRow(row) || getTextContent(row).split(/\s+/)[0];
+      if (symbol) symbols.push(symbol);
+    }
   }
 
   if (!symbols.length) {
