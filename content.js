@@ -10,12 +10,65 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getTextContent(el) {
+  return (el?.innerText || "").trim();
+}
+
+function findElementsByText(root, matcher) {
+  const nodes = Array.from(root.querySelectorAll("div, span, button, a, li, td"));
+  return nodes.filter((el) => {
+    const text = getTextContent(el);
+    return text && matcher(text);
+  });
+}
+
+function findFirstByText(root, matcher) {
+  const nodes = findElementsByText(root, matcher);
+  return nodes.length ? nodes[0] : null;
+}
+
+function findClosestListContainer(titleEl) {
+  if (!titleEl) return null;
+  let current = titleEl;
+  for (let i = 0; i < 6; i++) {
+    current = current.parentElement;
+    if (!current) break;
+    const hasListRole = current.getAttribute("role") === "list" || current.getAttribute("role") === "listbox";
+    const listItems = current.querySelectorAll("li, [role='listitem'], [data-symbol]");
+    if (hasListRole || listItems.length >= 3) {
+      return current;
+    }
+  }
+  return titleEl.closest("section, div");
+}
+
 async function getSettings() {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (settings) => {
       resolve(settings || {});
     });
   });
+}
+
+function detectWatchlistRows(listName, maxSymbols) {
+  const widget = document.querySelector('[data-test-id-widget-type="watchlist"]');
+  if (!widget) return [];
+
+  const headerTitle = widget.querySelector(
+    '[data-name="watchlists-button"] .titleRow-mQBvegEO, [data-name="watchlists-button"] span'
+  );
+  const titleText = getTextContent(headerTitle);
+  if (listName && titleText && titleText !== listName) {
+    return [];
+  }
+
+  const listRoot =
+    widget.querySelector('[data-name="symbol-list-wrap"]') || widget.querySelector('[data-name="tree"]') || widget;
+
+  const items = Array.from(
+    listRoot.querySelectorAll("[data-symbol-full], [data-symbol-short]")
+  );
+  return items.slice(0, maxSymbols);
 }
 
 function detectScreenerRows(maxSymbols) {
@@ -30,6 +83,18 @@ function detectScreenerRows(maxSymbols) {
 
 function extractSymbolFromRow(row) {
   // 典型情况：第一列包含代码，例如 "AAPL" / "600519"
+  const dataSymbol =
+    row.getAttribute("data-symbol") ||
+    row.getAttribute("data-symbol-id") ||
+    row.getAttribute("data-symbol-short") ||
+    row.getAttribute("data-symbol-full");
+  if (dataSymbol) {
+    const trimmed = dataSymbol.trim();
+    if (trimmed.includes(":")) {
+      return trimmed.split(":").pop();
+    }
+    return trimmed;
+  }
   const firstCell = row.querySelector("td");
   if (!firstCell) return null;
   const text = firstCell.innerText.trim();
@@ -57,6 +122,34 @@ function findStrategyItem(strategyName) {
     }
   }
   return null;
+}
+
+async function waitForOutdatedReportAndUpdate(timeoutMs = 5000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const updateBtn = findFirstByText(document, (text) => text.includes("更新报告"));
+    if (updateBtn) {
+      updateBtn.click();
+      await sleep(20000);
+      return true;
+    }
+    await sleep(300);
+  }
+  return false;
+}
+
+async function openStrategyReportMetricsTab() {
+  const reportTab = findFirstByText(document, (text) => text.includes("策略报告") || text.includes("策略测试"));
+  if (reportTab) {
+    reportTab.click();
+    await sleep(500);
+  }
+
+  const metricsTab = findFirstByText(document, (text) => text.trim() === "指标");
+  if (metricsTab) {
+    metricsTab.click();
+    await sleep(500);
+  }
 }
 
 async function applyStrategyAndTimeframeInChart(settings) {
@@ -136,15 +229,16 @@ async function configureBacktestRange(settings) {
 }
 
 function readBacktestResultForCurrentSymbol(symbol) {
-  // 在“策略测试器”面板中读取常见指标：净利润、胜率、最大回撤等。
+  // 在“策略报告-指标”面板中读取关键指标。
   // 需要你根据当前 TradingView 的 DOM 结构定制选择器，这里给出通用骨架。
 
   const result = {
     symbol,
-    netProfit: "",
-    winRate: "",
-    maxDrawdown: "",
-    trades: ""
+    totalPnL: "",
+    maxEquityDrawdown: "",
+    totalTrades: "",
+    winningTradesPercent: "",
+    profitFactor: ""
   };
 
   const root = document;
@@ -167,10 +261,11 @@ function readBacktestResultForCurrentSymbol(symbol) {
     return "";
   }
 
-  result.netProfit = findByLabel(["净利润", "Net profit"]);
-  result.winRate = findByLabel(["胜率", "Win rate"]);
-  result.maxDrawdown = findByLabel(["最大回撤", "Max drawdown"]);
-  result.trades = findByLabel(["交易次数", "Total closed trades"]);
+  result.totalPnL = findByLabel(["总盈亏", "Total P&L", "Total P/L", "净利润", "Net profit"]);
+  result.maxEquityDrawdown = findByLabel(["最大股权回撤", "Max equity drawdown", "最大回撤", "Max drawdown"]);
+  result.totalTrades = findByLabel(["总交易数", "Total trades", "交易次数", "Total closed trades"]);
+  result.winningTradesPercent = findByLabel(["盈利交易占比", "Winning trades", "Win rate"]);
+  result.profitFactor = findByLabel(["盈利因子", "Profit factor"]);
 
   return result;
 }
@@ -180,16 +275,23 @@ async function runBatchOnScreenerPage() {
   isRunningBatch = true;
 
   const settings = await getSettings();
-  const rows = detectScreenerRows(settings.maxSymbols || 50);
+  const maxSymbols = settings.maxSymbols || 50;
+  let rows = detectWatchlistRows("A股可交易", maxSymbols);
+  let source = "watchlist";
   if (!rows.length) {
-    alert("未在当前页面找到筛选器表格，请确认已打开 TradingView 筛选器。");
+    rows = detectScreenerRows(maxSymbols);
+    source = "screener";
+  }
+  if (!rows.length) {
+    alert("未在当前页面找到 A股可交易 监视列表或筛选器表格。");
     isRunningBatch = false;
     return;
   }
 
   const symbols = [];
-  for (const row of rows) {
-    const symbol = extractSymbolFromRow(row);
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const symbol = extractSymbolFromRow(row) || getTextContent(row).split(/\s+/)[0];
     if (symbol) symbols.push(symbol);
   }
 
@@ -201,25 +303,34 @@ async function runBatchOnScreenerPage() {
 
   const { delayBetweenSymbolsMs = 8000 } = settings;
   const csvRows = [];
-  csvRows.push("symbol,netProfit,winRate,maxDrawdown,trades");
+  csvRows.push("symbol,totalPnL,maxEquityDrawdown,totalTrades,winningTradesPercent,profitFactor");
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
     console.log(`开始处理第 ${i + 1}/${symbols.length} 个标的: ${symbol}`);
 
-    // 简化实现：直接在当前 tab 中切换 symbol，避免频繁开新 tab（更稳定）
-    // TradingView 支持在图表上方的代码输入框切换标的，通过 DOM 操作该输入框：
-    const symbolInput = document.querySelector("input[data-name='header-symbol-search'], input[placeholder*='Symbol']");
-    if (symbolInput) {
-      symbolInput.focus();
-      symbolInput.value = "";
-      symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
-      symbolInput.value = symbol;
-      symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
-      symbolInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
+    if (source === "watchlist") {
+      const currentRows = detectWatchlistRows("A股可交易", maxSymbols);
+      const targetRow = currentRows[i];
+      if (targetRow) {
+        targetRow.scrollIntoView({ block: "center" });
+        targetRow.click();
+      }
     } else {
-      // 如果当前不是图表页，而是筛选器页，可以尝试点击行打开图表
-      rows[i].click();
+      // 简化实现：直接在当前 tab 中切换 symbol，避免频繁开新 tab（更稳定）
+      // TradingView 支持在图表上方的代码输入框切换标的，通过 DOM 操作该输入框：
+      const symbolInput = document.querySelector("input[data-name='header-symbol-search'], input[placeholder*='Symbol']");
+      if (symbolInput) {
+        symbolInput.focus();
+        symbolInput.value = "";
+        symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
+        symbolInput.value = symbol;
+        symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
+        symbolInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
+      } else {
+        // 如果当前不是图表页，而是筛选器页，可以尝试点击行打开图表
+        rows[i].click();
+      }
     }
 
     // 等待图表与数据加载
@@ -227,6 +338,8 @@ async function runBatchOnScreenerPage() {
 
     await applyStrategyAndTimeframeInChart(settings);
     await configureBacktestRange(settings);
+    await openStrategyReportMetricsTab();
+    await waitForOutdatedReportAndUpdate(5000);
 
     // 再等一会儿，确保回测结果刷新完成
     await sleep(3000);
@@ -234,10 +347,11 @@ async function runBatchOnScreenerPage() {
     const result = readBacktestResultForCurrentSymbol(symbol);
     const row = [
       result.symbol,
-      JSON.stringify(result.netProfit || ""),
-      JSON.stringify(result.winRate || ""),
-      JSON.stringify(result.maxDrawdown || ""),
-      JSON.stringify(result.trades || "")
+      JSON.stringify(result.totalPnL || ""),
+      JSON.stringify(result.maxEquityDrawdown || ""),
+      JSON.stringify(result.totalTrades || ""),
+      JSON.stringify(result.winningTradesPercent || ""),
+      JSON.stringify(result.profitFactor || "")
     ].join(",");
     csvRows.push(row);
   }
