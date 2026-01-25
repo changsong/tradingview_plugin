@@ -110,6 +110,22 @@ function fireAltEnter(el) {
   return true;
 }
 
+async function ensureWatchlistSelected(symbol) {
+  const listContainer = getWatchlistListContainer();
+  if (!listContainer) return false;
+  const row = getWatchlistRowBySymbol(listContainer, symbol);
+  if (row) {
+    clickWatchlistRow(row);
+    await sleep(80);
+    listContainer.focus();
+    await sleep(50);
+    return true;
+  }
+  listContainer.focus();
+  await sleep(50);
+  return true;
+}
+
 async function selectWatchlistByKeyboard(listContainer, index) {
   if (!listContainer) return false;
   listContainer.focus();
@@ -574,23 +590,13 @@ async function runBatchOnScreenerPage() {
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 12) {
       let selected = false;
       if (source === "watchlist") {
-        const listContainer = getWatchlistListContainer();
-        const row =
-          getWatchlistRowBySymbol(listContainer, symbol) ||
-          getWatchlistRowBySymbol(listContainer, result.symbol);
-        if (row) {
-          clickWatchlistRow(row);
-          selected = true;
-        }
-        if (listContainer && !selected) {
-          listContainer.focus();
-          selected = true;
-        }
+        selected = await ensureWatchlistSelected(result.symbol || symbol);
       }
       if (!selected) {
         document.body?.focus();
       }
-      fireAltEnter(document.activeElement || document.body);
+      const target = document.activeElement || getWatchlistListContainer() || document.body;
+      fireAltEnter(target);
       logWithTime(`${symbol} 低于阈值，触发 Alt+Enter`);
     }
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
