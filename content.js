@@ -96,6 +96,20 @@ function fireKey(el, key) {
   el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
 }
 
+function fireAltEnter(el) {
+  if (!el) return false;
+  const eventInit = {
+    bubbles: true,
+    key: "Enter",
+    code: "Enter",
+    altKey: true,
+    view: window
+  };
+  el.dispatchEvent(new KeyboardEvent("keydown", eventInit));
+  el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
+  return true;
+}
+
 async function selectWatchlistByKeyboard(listContainer, index) {
   if (!listContainer) return false;
   listContainer.focus();
@@ -508,8 +522,13 @@ async function runBatchOnScreenerPage() {
   }
 
   const { delayBetweenSymbolsMs = 5000 } = settings;
-  const csvRows = [];
-  csvRows.push("symbol,totalPnL,maxEquityDrawdown,totalTrades,winningTradesPercent,profitFactor");
+  const results = [];
+  const parsePercentValue = (value) => {
+    if (!value) return NaN;
+    const match = String(value).match(/-?\d+(?:[.,]\d+)?/);
+    if (!match) return NaN;
+    return parseFloat(match[0].replace(/,/g, ""));
+  };
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
@@ -551,31 +570,61 @@ async function runBatchOnScreenerPage() {
     await sleep(1500);
 
     const result = readBacktestResultForCurrentSymbol(symbol);
-    const row = [
-      result.symbol,
-      JSON.stringify(result.totalPnL || ""),
-      JSON.stringify(result.maxEquityDrawdown || ""),
-      JSON.stringify(result.totalTrades || ""),
-      JSON.stringify(result.winningTradesPercent || ""),
-      JSON.stringify(result.profitFactor || "")
-    ].join(",");
-    logWithTime(row);
-    csvRows.push(row);
+    const totalPnLPercent = parsePercentValue(result.totalPnL);
+    if (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 12) {
+      let selected = false;
+      if (source === "watchlist") {
+        const listContainer = getWatchlistListContainer();
+        const row =
+          getWatchlistRowBySymbol(listContainer, symbol) ||
+          getWatchlistRowBySymbol(listContainer, result.symbol);
+        if (row) {
+          clickWatchlistRow(row);
+          selected = true;
+        }
+        if (listContainer && !selected) {
+          listContainer.focus();
+          selected = true;
+        }
+      }
+      if (!selected) {
+        document.body?.focus();
+      }
+      fireAltEnter(document.activeElement || document.body);
+      logWithTime(`${symbol} 低于阈值，触发 Alt+Enter`);
+    }
+    if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
+      results.push({
+        symbol: result.symbol,
+        totalPnL: result.totalPnL,
+        maxEquityDrawdown: result.maxEquityDrawdown,
+        totalTrades: result.totalTrades,
+        winningTradesPercent: result.winningTradesPercent,
+        profitFactor: result.profitFactor,
+        sharpeRatio: result.sharpeRatio
+      });
+    }
+    logWithTime(
+      `${result.symbol} PnL=${result.totalPnL} (match=${totalPnLPercent > 12})`
+    );
   }
 
-  chrome.runtime.sendMessage(
-    {
-      type: "EXPORT_CSV",
-      payload: {
-        rows: csvRows,
-        filename: `tradingview_backtest_${new Date().toISOString().slice(0, 10)}.csv`
-      }
-    },
-    () => {
-      alert("批量回测完成，CSV 已开始下载。");
-      isRunningBatch = false;
-    }
-  );
+  try {
+    const payload = JSON.stringify(results);
+    await fetch("http://149.28.141.122/backtest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: payload
+    });
+    alert("批量回测完成，结果已提交。");
+  } catch (error) {
+    console.error(error);
+    alert("批量回测完成，但提交失败，请查看控制台。");
+  } finally {
+    isRunningBatch = false;
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
