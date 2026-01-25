@@ -645,30 +645,8 @@ async function runBatchOnScreenerPage() {
     const result = readBacktestResultForCurrentSymbol(symbol);
     const totalPnLPercent = parsePercentValue(result.totalPnL);
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 12) {
-      let selected = false;
-      if (source === "watchlist") {
-        if (targetRow) {
-          logWithTime(`${symbol} 触发 Alt+Enter 前重新点击行`);
-          clickWatchlistRow(targetRow);
-          await sleep(80);
-        }
-        selected = await ensureWatchlistSelected(result.symbol || symbol, targetRow, i);
-      }
-      if (!selected) {
-        document.body?.focus();
-      }
-      const target = targetRow;
-
-      if (target) {
-        // 选中目标行
-        logWithTime(`${symbol} 触发目标已确认`);
-        clickWatchlistRow(targetRow);
-        if (typeof target.focus === "function") {
-          target.setAttribute("tabindex", "-1");
-          target.focus();
-        }
-      }
       if (source === "watchlist" && targetRow) {
+        await ensureWatchlistSelected(result.symbol || symbol, targetRow, i);
         const deleteBtn = targetRow.querySelector(
           ".removeButton-RsFlttSS, .removeButton-Tf8QRdrk"
         );
