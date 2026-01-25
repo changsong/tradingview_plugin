@@ -668,7 +668,19 @@ async function runBatchOnScreenerPage() {
           target.focus();
         }
       }
-      logWithTime(`${symbol} 低于阈值，已标记`);
+      if (source === "watchlist" && targetRow) {
+        const deleteBtn = targetRow.querySelector(
+          ".removeButton-RsFlttSS, .removeButton-Tf8QRdrk"
+        );
+        if (deleteBtn) {
+          deleteBtn.click();
+          logWithTime(`${symbol} 低于阈值，已点击删除`);
+        } else {
+          logWithTime(`${symbol} 低于阈值，但未找到删除按钮`);
+        }
+      } else {
+        logWithTime(`${symbol} 低于阈值，已标记`);
+      }
     }
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
       results.push({
@@ -688,7 +700,7 @@ async function runBatchOnScreenerPage() {
 
   try {
     const payload = JSON.stringify(results);
-    await fetch("http://149.28.141.122/backtest", {
+    await fetch("https://149.28.141.122/backtest", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
