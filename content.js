@@ -94,13 +94,13 @@ function fireKey(el, key) {
 async function selectWatchlistByKeyboard(listContainer, index) {
   if (!listContainer) return false;
   listContainer.focus();
-  await sleep(80);
+  await sleep(50);
   if (index === 0) {
     fireKey(listContainer, "Home");
-    await sleep(80);
+    await sleep(50);
   } else {
     fireKey(listContainer, "ArrowDown");
-    await sleep(80);
+    await sleep(50);
   }
   fireKey(listContainer, "Enter");
   return true;
@@ -119,7 +119,7 @@ async function selectWatchlistByScrollAndClick(listContainer, symbol, index) {
   const firstRow = listContainer.querySelector(".symbol-RsFlttSS");
   const rowHeight = firstRow?.getBoundingClientRect().height || 30;
   listContainer.scrollTop = Math.max(0, index * rowHeight);
-  await sleep(200);
+  await sleep(120);
   const row = getWatchlistRowBySymbol(listContainer, symbol) || listContainer.querySelector(".symbol-RsFlttSS");
   if (row) {
     return clickWatchlistRow(row);
@@ -245,7 +245,7 @@ function findStrategyItem(strategyName) {
   return null;
 }
 
-async function waitForOutdatedReportAndUpdate(appearTimeoutMs = 30000, postClickWaitMs = 20000) {
+async function waitForOutdatedReportAndUpdate(appearTimeoutMs = 30000, postClickWaitMs = 10000) {
   const start = Date.now();
   while (Date.now() - start < appearTimeoutMs) {
     const snackbar = document.querySelector('[data-qa-id="backtesting-updated-report-snackbar"]');
@@ -266,13 +266,13 @@ async function openStrategyReportMetricsTab() {
   const reportTab = findFirstByText(document, (text) => text.includes("策略报告") || text.includes("策略测试"));
   if (reportTab) {
     reportTab.click();
-    await sleep(500);
+    await sleep(200);
   }
 
   const metricsTab = findFirstByText(document, (text) => text.trim() === "指标");
   if (metricsTab) {
     metricsTab.click();
-    await sleep(500);
+    await sleep(200);
   }
 }
 
@@ -287,7 +287,7 @@ async function applyStrategyAndTimeframeInChart(settings) {
   const tfButton = document.querySelector('[data-name="timeframes-toolbar"] button, [data-name="timeframe"]');
   if (tfButton) {
     tfButton.click();
-    await sleep(300);
+    await sleep(200);
     const items = Array.from(document.querySelectorAll("div, span, button"));
     const target = items.find((el) => el.innerText && el.innerText.trim() === timeframe);
     if (target) target.click();
@@ -298,7 +298,7 @@ async function applyStrategyAndTimeframeInChart(settings) {
     const indicatorsBtn = document.querySelector('[data-name="indicator-button"], [data-name="indicators"]');
     if (indicatorsBtn) {
       indicatorsBtn.click();
-      await sleep(500);
+      await sleep(300);
     }
 
     const strategyItem = findStrategyItem(strategyName);
@@ -321,7 +321,7 @@ async function configureBacktestRange(settings) {
   );
   if (testerTab) {
     testerTab.click();
-    await sleep(500);
+    await sleep(300);
   }
 
   // 实际要用开发者工具找到 Backtesting 日期区间控件的 input 或按钮
@@ -425,7 +425,7 @@ async function runBatchOnScreenerPage() {
     return;
   }
 
-  const { delayBetweenSymbolsMs = 8000 } = settings;
+  const { delayBetweenSymbolsMs = 5000 } = settings;
   const csvRows = [];
   csvRows.push("symbol,totalPnL,maxEquityDrawdown,totalTrades,winningTradesPercent,profitFactor");
 
@@ -463,10 +463,10 @@ async function runBatchOnScreenerPage() {
     await applyStrategyAndTimeframeInChart(settings);
     await configureBacktestRange(settings);
     await openStrategyReportMetricsTab();
-    await waitForOutdatedReportAndUpdate(5000);
+    await waitForOutdatedReportAndUpdate(3000);
 
     // 再等一会儿，确保回测结果刷新完成
-    await sleep(3000);
+    await sleep(1500);
 
     const result = readBacktestResultForCurrentSymbol(symbol);
     const row = [
@@ -477,6 +477,7 @@ async function runBatchOnScreenerPage() {
       JSON.stringify(result.winningTradesPercent || ""),
       JSON.stringify(result.profitFactor || "")
     ].join(",");
+    console.log(row);
     csvRows.push(row);
   }
 
