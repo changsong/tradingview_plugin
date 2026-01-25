@@ -124,13 +124,16 @@ function findStrategyItem(strategyName) {
   return null;
 }
 
-async function waitForOutdatedReportAndUpdate(timeoutMs = 5000) {
+async function waitForOutdatedReportAndUpdate(appearTimeoutMs = 30000, postClickWaitMs = 20000) {
   const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const updateBtn = findFirstByText(document, (text) => text.includes("更新报告"));
+  while (Date.now() - start < appearTimeoutMs) {
+    const snackbar = document.querySelector('[data-qa-id="backtesting-updated-report-snackbar"]');
+    const updateBtn =
+      snackbar?.querySelector("button.snackbarButton-GBq6Mkel") ||
+      findFirstByText(document, (text) => text.includes("更新报告"));
     if (updateBtn) {
       updateBtn.click();
-      await sleep(20000);
+      await sleep(postClickWaitMs);
       return true;
     }
     await sleep(300);
