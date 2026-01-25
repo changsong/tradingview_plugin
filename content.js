@@ -440,12 +440,15 @@ function readBacktestResultForCurrentSymbol(symbol) {
     const titleEl = titleCells.find((el) =>
       normalize(el.innerText).includes(titleText)
     );
-    if (!titleEl) return "";
-    const row = titleEl.closest("tr");
+    let row = titleEl?.closest("tr");
+    if (!row) {
+      const rows = Array.from(root.querySelectorAll("tr"));
+      row = rows.find((tr) => normalize(tr.innerText).includes(titleText));
+    }
     if (!row) return "";
+    const valueEls = Array.from(row.querySelectorAll(".value-SLMKagwH"));
     const valueEl =
-      row.querySelector(".tableCell-SLMKagwH .value-SLMKagwH") ||
-      row.querySelector(".value-SLMKagwH");
+      valueEls.find((el) => normalize(el.innerText)) || valueEls[0];
     return normalize(valueEl?.innerText);
   }
 
