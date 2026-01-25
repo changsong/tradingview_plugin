@@ -6,7 +6,8 @@
   "permissions": [
     "scripting",
     "tabs",
-    "storage"
+    "storage",
+    "downloads"
   ],
   "host_permissions": [
     "https://www.tradingview.com/*",

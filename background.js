@@ -29,22 +29,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === "EXPORT_CSV") {
-    const { rows, filename } = message.payload || {};
-    const csvContent = rows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    chrome.downloads.download(
-      {
-        url,
-        filename: filename || "tradingview_backtest.csv",
-        saveAs: true
-      },
-      () => {
-        URL.revokeObjectURL(url);
+    try {
+      if (!chrome.downloads) {
+        sendResponse({ ok: false, error: "downloads permission missing" });
+        return true;
       }
-    );
-    sendResponse({ ok: true });
+      const { rows, filename } = message.payload || {};
+      const csvContent = rows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      chrome.downloads.download(
+        {
+          url,
+          filename: filename || "tradingview_backtest.csv",
+          saveAs: true
+        },
+        () => {
+          URL.revokeObjectURL(url);
+        }
+      );
+      sendResponse({ ok: true });
+    } catch (err) {
+      sendResponse({ ok: false, error: String(err) });
+    }
     return true;
   }
 });
