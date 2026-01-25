@@ -74,15 +74,25 @@ function detectWatchlistRows(listName, maxSymbols) {
 function clickWatchlistRow(row) {
   if (!row) return false;
   const clickable =
-    row.closest(".wrap-IEe5qpW4") ||
     row.querySelector(".symbol-RsFlttSS") ||
+    row.closest(".wrap-IEe5qpW4") ||
     row;
   const target = clickable instanceof HTMLElement ? clickable : row;
+  const symbolText = target.querySelector(".symbolNameText-RsFlttSS");
+
+  const fireClick = (el) => {
+    if (!el) return;
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    el.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  };
+
   target.scrollIntoView({ block: "center" });
-  target.click();
-  // 触发一次鼠标事件，提升命中率
-  target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-  target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  if (symbolText) {
+    fireClick(symbolText);
+  }
+  fireClick(target);
   return true;
 }
 
