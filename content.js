@@ -63,33 +63,109 @@ function detectWatchlistRows(listName, maxSymbols) {
   }
 
   const listRoot =
-    widget.querySelector('[data-name="symbol-list-wrap"]') || widget.querySelector('[data-name="tree"]') || widget;
+    widget.querySelector(".listContainer-MgF6KBas") ||
+    widget.querySelector('[data-name="tree"]') ||
+    widget.querySelector('[data-name="symbol-list-wrap"]') ||
+    widget;
 
   const items = Array.from(
-    listRoot.querySelectorAll("[data-symbol-full], [data-symbol-short]")
+    listRoot.querySelectorAll(".symbol-RsFlttSS[data-symbol-full], .symbol-RsFlttSS[data-symbol-short]")
   );
   return items.slice(0, maxSymbols);
 }
 
+function getWatchlistListContainer() {
+  const widget = document.querySelector('[data-test-id-widget-type="watchlist"]');
+  return (
+    widget?.querySelector(".listContainer-MgF6KBas") ||
+    widget?.querySelector('[data-name="tree"]') ||
+    widget?.querySelector('[data-name="symbol-list-wrap"]') ||
+    null
+  );
+}
+
+function fireKey(el, key) {
+  if (!el) return;
+  const eventInit = { bubbles: true, key, code: key, view: window };
+  el.dispatchEvent(new KeyboardEvent("keydown", eventInit));
+  el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
+}
+
+async function selectWatchlistByKeyboard(listContainer, index) {
+  if (!listContainer) return false;
+  listContainer.focus();
+  await sleep(80);
+  if (index === 0) {
+    fireKey(listContainer, "Home");
+    await sleep(80);
+  } else {
+    fireKey(listContainer, "ArrowDown");
+    await sleep(80);
+  }
+  fireKey(listContainer, "Enter");
+  return true;
+}
+
+function getWatchlistRowBySymbol(listContainer, symbol) {
+  if (!listContainer || !symbol) return null;
+  return (
+    listContainer.querySelector(`.symbol-RsFlttSS[data-symbol-short="${symbol}"]`) ||
+    listContainer.querySelector(`.symbol-RsFlttSS[data-symbol-full$=":${symbol}"]`)
+  );
+}
+
+async function selectWatchlistByScrollAndClick(listContainer, symbol, index) {
+  if (!listContainer) return false;
+  const firstRow = listContainer.querySelector(".symbol-RsFlttSS");
+  const rowHeight = firstRow?.getBoundingClientRect().height || 30;
+  listContainer.scrollTop = Math.max(0, index * rowHeight);
+  await sleep(200);
+  const row = getWatchlistRowBySymbol(listContainer, symbol) || listContainer.querySelector(".symbol-RsFlttSS");
+  if (row) {
+    return clickWatchlistRow(row);
+  }
+  return false;
+}
+
 function clickWatchlistRow(row) {
   if (!row) return false;
-  const clickable =
-    row.querySelector(".symbol-RsFlttSS") ||
-    row.closest(".wrap-IEe5qpW4") ||
-    row;
-  const target = clickable instanceof HTMLElement ? clickable : row;
-  const symbolText = target.querySelector(".symbolNameText-RsFlttSS");
+  const wrap = row.closest(".wrap-IEe5qpW4");
+  const symbolRow = row.classList.contains("symbol-RsFlttSS")
+    ? row
+    : row.querySelector(".symbol-RsFlttSS");
+  const target = wrap || symbolRow || row;
+  const symbolText = target.querySelector?.(".symbolNameText-RsFlttSS");
 
   const fireClickAt = (el) => {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const clientX = rect.left + rect.width / 2;
     const clientY = rect.top + rect.height / 2;
-    const opts = { bubbles: true, clientX, clientY, view: window };
-    el.dispatchEvent(new PointerEvent("pointerdown", opts));
-    el.dispatchEvent(new MouseEvent("mousedown", opts));
-    el.dispatchEvent(new MouseEvent("mouseup", opts));
-    el.dispatchEvent(new MouseEvent("click", opts));
+    const common = {
+      bubbles: true,
+      composed: true,
+      clientX,
+      clientY,
+      screenX: clientX,
+      screenY: clientY,
+      view: window,
+      button: 0,
+      buttons: 1,
+      detail: 1
+    };
+    const pointer = {
+      ...common,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      pressure: 0.5
+    };
+    el.dispatchEvent(new PointerEvent("pointerdown", pointer));
+    el.dispatchEvent(new MouseEvent("mousedown", common));
+    el.dispatchEvent(new PointerEvent("pointerup", { ...pointer, buttons: 0, pressure: 0 }));
+    el.dispatchEvent(new MouseEvent("mouseup", common));
+    el.dispatchEvent(new PointerEvent("click", { ...pointer, buttons: 0, pressure: 0 }));
+    el.dispatchEvent(new MouseEvent("click", { ...common, buttons: 0 }));
   };
 
   target.scrollIntoView({ block: "center" });
@@ -137,6 +213,22 @@ async function openSymbolInChart(symbol) {
   const base = location.origin;
   const chartUrl = `${base}/chart/?symbol=${encodeURIComponent(symbol)}`;
   window.open(chartUrl, "_blank");
+}
+
+function setSymbolViaHeaderInput(symbol) {
+  const symbolInput = document.querySelector(
+    "input[data-name='header-symbol-search'], input[placeholder*='Symbol']"
+  );
+  if (!symbolInput) return false;
+  symbolInput.focus();
+  symbolInput.value = "";
+  symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
+  symbolInput.value = symbol;
+  symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
+  symbolInput.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true })
+  );
+  return true;
 }
 
 function findStrategyItem(strategyName) {
@@ -344,21 +436,22 @@ async function runBatchOnScreenerPage() {
     if (source === "watchlist") {
       const currentRows = detectWatchlistRows("A股可交易", maxSymbols);
       const targetRow = currentRows[i];
-      if (targetRow) {
-        clickWatchlistRow(targetRow);
+      const symbolFromRow = targetRow ? extractSymbolFromRow(targetRow) : "";
+      const inputSwitched = symbolFromRow ? setSymbolViaHeaderInput(symbolFromRow) : false;
+      if (!inputSwitched) {
+        const listContainer = getWatchlistListContainer();
+        const scrollClicked = await selectWatchlistByScrollAndClick(listContainer, symbolFromRow, i);
+        if (!scrollClicked) {
+          const keyboardOk = await selectWatchlistByKeyboard(listContainer, i);
+          if (!keyboardOk && targetRow) {
+            clickWatchlistRow(targetRow);
+          }
+        }
       }
     } else {
       // 简化实现：直接在当前 tab 中切换 symbol，避免频繁开新 tab（更稳定）
       // TradingView 支持在图表上方的代码输入框切换标的，通过 DOM 操作该输入框：
-      const symbolInput = document.querySelector("input[data-name='header-symbol-search'], input[placeholder*='Symbol']");
-      if (symbolInput) {
-        symbolInput.focus();
-        symbolInput.value = "";
-        symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
-        symbolInput.value = symbol;
-        symbolInput.dispatchEvent(new Event("input", { bubbles: true }));
-        symbolInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
-      } else {
+      if (!setSymbolViaHeaderInput(symbol)) {
         // 如果当前不是图表页，而是筛选器页，可以尝试点击行打开图表
         rows[i].click();
       }
