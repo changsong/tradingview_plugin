@@ -104,34 +104,118 @@ function fireKey(el, key) {
   el.dispatchEvent(new KeyboardEvent("keyup", eventInit));
 }
 
-function fireAltEnter(el) {
-  if (!el) return false;
-  const base = { bubbles: true, view: window, altKey: true };
-  el.dispatchEvent(new KeyboardEvent("keydown", { ...base, key: "Alt", code: "AltLeft" }));
-  el.dispatchEvent(
-    new KeyboardEvent("keydown", { ...base, key: "Enter", code: "Enter" })
-  );
-  el.dispatchEvent(
-    new KeyboardEvent("keyup", { ...base, key: "Enter", code: "Enter" })
-  );
-  el.dispatchEvent(new KeyboardEvent("keyup", { ...base, key: "Alt", code: "AltLeft" }));
+function openContextMenu(target) {
+  if (!target) return false;
+  const rect = target.getBoundingClientRect();
+  const clientX = rect.left + rect.width / 2;
+  const clientY = rect.top + rect.height / 2;
+  const common = {
+    bubbles: true,
+    composed: true,
+    clientX,
+    clientY,
+    screenX: clientX,
+    screenY: clientY,
+    view: window,
+    button: 2,
+    buttons: 2
+  };
+  target.dispatchEvent(new MouseEvent("mousedown", common));
+  target.dispatchEvent(new MouseEvent("mouseup", common));
+  target.dispatchEvent(new MouseEvent("contextmenu", common));
   return true;
 }
 
-async function ensureWatchlistSelected(symbol) {
+function clickFirstContextMenuItem() {
+  const menu =
+    document.querySelector('[role="menu"]') ||
+    document.querySelector('[data-name="context-menu"]') ||
+    document.querySelector(".context-menu");
+  if (!menu) return false;
+  const item =
+    menu.querySelector('[role="menuitem"]') ||
+    menu.querySelector("button") ||
+    menu.querySelector("div");
+  if (!item) return false;
+  item.click();
+  return true;
+}
+
+function isWatchlistRowSelected(row) {
+  if (!row) return false;
+  const ariaSelected = row.getAttribute("aria-selected") === "true";
+  const ariaChecked = row.getAttribute("aria-checked") === "true";
+  const dataActive = row.getAttribute("data-active") === "true";
+  const dataSelected = row.getAttribute("data-selected") === "true";
+  const dataState = /active|selected|current/i.test(row.getAttribute("data-state") || "");
+  const className = row.className || "";
+  const classSelected = /isActive|active|selected|current/i.test(className);
+  const selectedParent = row.closest(
+    ".isActive, .active, .selected, .current, [data-active='true'], [data-selected='true'], [aria-selected='true']"
+  );
+  return (
+    ariaSelected ||
+    ariaChecked ||
+    dataActive ||
+    dataSelected ||
+    dataState ||
+    classSelected ||
+    !!selectedParent
+  );
+}
+
+function logWatchlistRowState(symbol, row) {
+  if (!row) {
+    logWithTime(`${symbol} 行不存在，无法选中`);
+    return;
+  }
+  const attrs = {
+    ariaSelected: row.getAttribute("aria-selected"),
+    ariaChecked: row.getAttribute("aria-checked"),
+    dataActive: row.getAttribute("data-active"),
+    dataSelected: row.getAttribute("data-selected"),
+    dataState: row.getAttribute("data-state"),
+    className: row.className
+  };
+  logWithTime(`${symbol} 行状态`, attrs);
+}
+
+async function ensureWatchlistSelected(symbol, rowHint, index) {
   const listContainer = getWatchlistListContainer();
   if (!listContainer) return false;
-  const row = getWatchlistRowBySymbol(listContainer, symbol);
-  if (row) {
-    clickWatchlistRow(row);
-    await sleep(80);
+  const row = rowHint || getWatchlistRowBySymbol(listContainer, symbol);
+  if (!row) {
     listContainer.focus();
     await sleep(50);
-    return true;
+    return false;
+  }
+  row.scrollIntoView({ block: "center" });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    clickWatchlistRow(row);
+    await sleep(120);
+    listContainer.focus();
+    await sleep(60);
+    if (isWatchlistRowSelected(row)) {
+      logWithTime(`${symbol} 行已选中(尝试${attempt})`);
+      return true;
+    }
+    logWithTime(`${symbol} 行未选中(尝试${attempt})`);
+  }
+  if (Number.isFinite(index)) {
+    const scrolled = await selectWatchlistByScrollAndClick(listContainer, symbol, index);
+    if (scrolled) {
+      await sleep(120);
+      if (isWatchlistRowSelected(row)) {
+        logWithTime(`${symbol} 行已选中(滚动点击)`);
+        return true;
+      }
+    }
   }
   listContainer.focus();
-  await sleep(50);
-  return true;
+  fireKey(listContainer, "Enter");
+  await sleep(80);
+  logWatchlistRowState(symbol, row);
+  return isWatchlistRowSelected(row);
 }
 
 async function selectWatchlistByKeyboard(listContainer, index) {
@@ -604,22 +688,32 @@ async function runBatchOnScreenerPage() {
           clickWatchlistRow(targetRow);
           await sleep(80);
         }
-        selected = await ensureWatchlistSelected(result.symbol || symbol);
+        selected = await ensureWatchlistSelected(result.symbol || symbol, targetRow, i);
       }
       if (!selected) {
         document.body?.focus();
       }
-      const target = targetRow ;
+      const target = targetRow;
 
       if (target) {
-         // 选中目标行
-        logWithTime(`${symbol} Alt+Enter 触发目标已确认`);
+        // 选中目标行
+        logWithTime(`${symbol} 右键触发目标已确认`);
         clickWatchlistRow(targetRow);
-        // 触发 Alt+Enter
-        logWithTime(`${symbol} 发送 Alt+Enter 快捷键`);
-        fireAltEnter(target);
-      } 
-      logWithTime(`${symbol} 低于阈值，触发 Alt+Enter`);
+        if (typeof target.focus === "function") {
+          target.setAttribute("tabindex", "-1");
+          target.focus();
+        }
+        // 触发右键菜单并点击第一个项
+        const activeInfo = document.activeElement
+          ? `${document.activeElement.tagName}.${document.activeElement.className || ""}`
+          : "none";
+        logWithTime(`${symbol} 打开右键菜单, active=${activeInfo}`);
+        openContextMenu(target);
+        await sleep(120);
+        const clicked = clickFirstContextMenuItem();
+        logWithTime(`${symbol} 点击右键第一个菜单项=${clicked}`);
+      }
+      logWithTime(`${symbol} 低于阈值，触发右键菜单第一个项`);
     }
     if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
       results.push({
