@@ -14,6 +14,11 @@ function getTextContent(el) {
   return (el?.innerText || "").trim();
 }
 
+function logWithTime(...args) {
+  const ts = new Date().toISOString();
+  console.log(`[${ts}]`, ...args);
+}
+
 function findElementsByText(root, matcher) {
   const nodes = Array.from(root.querySelectorAll("div, span, button, a, li, td"));
   return nodes.filter((el) => {
@@ -405,34 +410,50 @@ function readBacktestResultForCurrentSymbol(symbol) {
     maxEquityDrawdown: "",
     totalTrades: "",
     winningTradesPercent: "",
-    profitFactor: ""
+    profitFactor: "",
+    sharpeRatio: ""
   };
 
-  const root = document;
-  const textNodes = Array.from(root.querySelectorAll("div, span, td"));
+  const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
 
-  function findByLabel(labelKeywords) {
-    const lowerKeywords = labelKeywords.map((k) => k.toLowerCase());
-    for (let i = 0; i < textNodes.length; i++) {
-      const el = textNodes[i];
-      const text = (el.innerText || "").trim().toLowerCase();
-      if (!text) continue;
-      if (lowerKeywords.some((k) => text.includes(k))) {
-        // 尝试在下一个节点里取数值
-        const next = textNodes[i + 1];
-        if (next && next.innerText) {
-          return next.innerText.trim();
-        }
-      }
-    }
-    return "";
+  function readMetricCard(titleText) {
+    const titles = Array.from(document.querySelectorAll(".title-nEWm7_ye"));
+    const titleEl = titles.find((el) => normalize(el.innerText) === titleText);
+    if (!titleEl) return { value: "", percent: "" };
+    const cell = titleEl.closest(".containerCell-zres18Ue");
+    if (!cell) return { value: "", percent: "" };
+    const valueEl = cell.querySelector(".highlightedValue-DiHajR6I, .value-DiHajR6I");
+    const percentEl = cell.querySelector(".change-DiHajR6I");
+    return {
+      value: normalize(valueEl?.innerText),
+      percent: normalize(percentEl?.innerText)
+    };
   }
 
-  result.totalPnL = findByLabel(["总盈亏", "Total P&L", "Total P/L", "净利润", "Net profit"]);
-  result.maxEquityDrawdown = findByLabel(["最大股权回撤", "Max equity drawdown", "最大回撤", "Max drawdown"]);
-  result.totalTrades = findByLabel(["总交易数", "Total trades", "交易次数", "Total closed trades"]);
-  result.winningTradesPercent = findByLabel(["盈利交易占比", "Winning trades", "Win rate"]);
-  result.profitFactor = findByLabel(["盈利因子", "Profit factor"]);
+  function readTableValue(titleText) {
+    const titleCells = Array.from(
+      document.querySelectorAll(".title-fArEbVva")
+    );
+    const titleEl = titleCells.find((el) => normalize(el.innerText) === titleText);
+    if (!titleEl) return "";
+    const row = titleEl.closest("tr");
+    if (!row) return "";
+    const valueEl = row.querySelector(".value-SLMKagwH");
+    return normalize(valueEl?.innerText);
+  }
+
+  const totalPnL = readMetricCard("总盈亏");
+  const maxDrawdown = readMetricCard("最大股权回撤");
+  const totalTrades = readMetricCard("总交易");
+  const winningTrades = readMetricCard("盈利交易");
+  const profitFactor = readMetricCard("盈利因子");
+
+  result.totalPnL = totalPnL.percent || totalPnL.value;
+  result.maxEquityDrawdown = maxDrawdown.percent || maxDrawdown.value;
+  result.totalTrades = totalTrades.value;
+  result.winningTradesPercent = winningTrades.value || winningTrades.percent;
+  result.profitFactor = profitFactor.value;
+  result.sharpeRatio = readTableValue("夏普比率");
 
   return result;
 }
@@ -478,7 +499,7 @@ async function runBatchOnScreenerPage() {
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
-    console.log(`开始处理第 ${i + 1}/${symbols.length} 个标的: ${symbol}`);
+    logWithTime(`开始处理第 ${i + 1}/${symbols.length} 个标的: ${symbol}`);
 
     if (source === "watchlist") {
       const currentRows = detectWatchlistRows("A股可交易", maxSymbols);
@@ -524,7 +545,7 @@ async function runBatchOnScreenerPage() {
       JSON.stringify(result.winningTradesPercent || ""),
       JSON.stringify(result.profitFactor || "")
     ].join(",");
-    console.log(row);
+    logWithTime(row);
     csvRows.push(row);
   }
 
