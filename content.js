@@ -414,7 +414,11 @@ function readBacktestResultForCurrentSymbol(symbol) {
     sharpeRatio: ""
   };
 
-  const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+  const normalize = (text) =>
+    (text || "")
+      .replace(/[\u200e\u200f\u202a-\u202e]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
   function readMetricCard(titleText) {
     const titles = Array.from(document.querySelectorAll(".title-nEWm7_ye"));
@@ -430,15 +434,18 @@ function readBacktestResultForCurrentSymbol(symbol) {
     };
   }
 
-  function readTableValue(titleText) {
-    const titleCells = Array.from(
-      document.querySelectorAll(".title-fArEbVva")
+  function readTableValue(titleText, scope) {
+    const root = scope || document;
+    const titleCells = Array.from(root.querySelectorAll(".title-fArEbVva"));
+    const titleEl = titleCells.find((el) =>
+      normalize(el.innerText).includes(titleText)
     );
-    const titleEl = titleCells.find((el) => normalize(el.innerText) === titleText);
     if (!titleEl) return "";
     const row = titleEl.closest("tr");
     if (!row) return "";
-    const valueEl = row.querySelector(".value-SLMKagwH");
+    const valueEl =
+      row.querySelector(".tableCell-SLMKagwH .value-SLMKagwH") ||
+      row.querySelector(".value-SLMKagwH");
     return normalize(valueEl?.innerText);
   }
 
@@ -453,7 +460,11 @@ function readBacktestResultForCurrentSymbol(symbol) {
   result.totalTrades = totalTrades.value;
   result.winningTradesPercent = winningTrades.value || winningTrades.percent;
   result.profitFactor = profitFactor.value;
-  result.sharpeRatio = readTableValue("夏普比率");
+  const ratiosTable = document.querySelector('[data-qa-id="ratios-table"]');
+  result.sharpeRatio =
+    readTableValue("夏普比率", ratiosTable) ||
+    readTableValue("Sharpe Ratio", ratiosTable) ||
+    readTableValue("夏普比率");
 
   return result;
 }
