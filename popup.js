@@ -1,9 +1,7 @@
 // popup.js - 负责展示和保存配置，并触发在当前 TradingView 页的批量回测
 
 const strategyNameInput = document.getElementById("strategyName");
-const timeframeSelect = document.getElementById("timeframe");
-const backtestFromInput = document.getElementById("backtestFrom");
-const backtestToInput = document.getElementById("backtestTo");
+const submitUrlInput = document.getElementById("submitUrl");
 const maxSymbolsInput = document.getElementById("maxSymbols");
 const delayInput = document.getElementById("delayBetweenSymbolsMs");
 const saveBtn = document.getElementById("saveBtn");
@@ -13,9 +11,8 @@ function loadSettings() {
   chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (settings) => {
     if (!settings) return;
     strategyNameInput.value = settings.strategyName || "";
-    timeframeSelect.value = settings.timeframe || "D";
-    backtestFromInput.value = settings.backtestFrom || "";
-    backtestToInput.value = settings.backtestTo || "";
+    submitUrlInput.value =
+      settings.submitUrl || "https://149.28.141.122/backtest";
     maxSymbolsInput.value = settings.maxSymbols || 50;
     delayInput.value = settings.delayBetweenSymbolsMs || 8000;
   });
@@ -24,9 +21,8 @@ function loadSettings() {
 function saveSettings() {
   const payload = {
     strategyName: strategyNameInput.value.trim(),
-    timeframe: timeframeSelect.value,
-    backtestFrom: backtestFromInput.value,
-    backtestTo: backtestToInput.value,
+    submitUrl:
+      submitUrlInput.value.trim() || "https://149.28.141.122/backtest",
     maxSymbols: Number(maxSymbolsInput.value) || 50,
     delayBetweenSymbolsMs: Number(delayInput.value) || 8000
   };

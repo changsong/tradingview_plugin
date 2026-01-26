@@ -440,14 +440,20 @@ async function applyStrategyAndTimeframeInChart(settings) {
   // 最稳的是使用键盘：先聚焦图表，再发送数字/字母组合，但 content script 无法模拟键盘事件到 TradingView 内部逻辑，
   // 因此这里使用简单 DOM 点击 + 选择文本方式作为示例（实际项目需要你根据当前 DOM 结构手工微调）。
 
-  // 打开时间框下拉
-  const tfButton = document.querySelector('[data-name="timeframes-toolbar"] button, [data-name="timeframe"]');
-  if (tfButton) {
-    tfButton.click();
-    await sleep(200);
-    const items = Array.from(document.querySelectorAll("div, span, button"));
-    const target = items.find((el) => el.innerText && el.innerText.trim() === timeframe);
-    if (target) target.click();
+  if (timeframe) {
+    // 打开时间框下拉
+    const tfButton = document.querySelector(
+      '[data-name="timeframes-toolbar"] button, [data-name="timeframe"]'
+    );
+    if (tfButton) {
+      tfButton.click();
+      await sleep(200);
+      const items = Array.from(document.querySelectorAll("div, span, button"));
+      const target = items.find(
+        (el) => el.innerText && el.innerText.trim() === timeframe
+      );
+      if (target) target.click();
+    }
   }
 
   // 2. 应用策略：打开 "指标与策略" 面板并选择策略
@@ -587,6 +593,7 @@ async function runBatchOnScreenerPage() {
 
   const settings = await getSettings();
   const maxSymbols = settings.maxSymbols || 5000;
+  const submitUrl = settings.submitUrl || "https://149.28.141.122/backtest";
   const watchlistNames = ["A股可交易", "美股可交易"];
   let rows = detectWatchlistRows(watchlistNames[0], maxSymbols);
   let source = "watchlist";
@@ -710,7 +717,7 @@ async function runBatchOnScreenerPage() {
 
   try {
     const payload = JSON.stringify(results);
-    await fetch("https://149.28.141.122/backtest", {
+    await fetch(submitUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

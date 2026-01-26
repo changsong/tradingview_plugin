@@ -2,9 +2,7 @@
 
 const DEFAULT_SETTINGS = {
   strategyName: "",
-  timeframe: "D",
-  backtestFrom: "", // 例如 "2020-01-01"
-  backtestTo: "",   // 留空表示到当前
+  submitUrl: "https://149.28.141.122/backtest",
   maxSymbols: 50,
   delayBetweenSymbolsMs: 8000 // 根据你本地网络与 TradingView 反应调整
 };
