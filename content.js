@@ -4,6 +4,12 @@
 // 3. 读取回测报告中的关键指标
 // 4. 将结果通过 background 导出为 CSV
 
+(() => {
+  if (globalThis.__tvBatchInjected) {
+    return;
+  }
+  globalThis.__tvBatchInjected = true;
+
 let isRunningBatch = false;
 
 function sleep(ms) {
@@ -147,7 +153,10 @@ function logWatchlistRowState(symbol, row) {
 async function ensureWatchlistSelected(symbol, rowHint, index) {
   const listContainer = getWatchlistListContainer();
   if (!listContainer) return false;
-  const row = rowHint || getWatchlistRowBySymbol(listContainer, symbol);
+  let row = rowHint || getWatchlistRowBySymbol(listContainer, symbol);
+  if (!row) {
+    row = await scrollFindWatchlistRow(listContainer, symbol);
+  }
   if (!row) {
     listContainer.focus();
     await sleep(50);
@@ -166,7 +175,7 @@ async function ensureWatchlistSelected(symbol, rowHint, index) {
     logWithTime(`${symbol} 行未选中(尝试${attempt})`);
   }
   if (Number.isFinite(index)) {
-    const scrolled = await selectWatchlistByScrollAndClick(listContainer, symbol, index);
+    const scrolled = await selectWatchlistByScrollAndClick(listContainer, symbol);
     if (scrolled) {
       await sleep(120);
       if (isWatchlistRowSelected(row)) {
@@ -205,13 +214,27 @@ function getWatchlistRowBySymbol(listContainer, symbol) {
   );
 }
 
-async function selectWatchlistByScrollAndClick(listContainer, symbol, index) {
-  if (!listContainer) return false;
+async function scrollFindWatchlistRow(listContainer, symbol) {
+  if (!listContainer || !symbol) return null;
   const firstRow = listContainer.querySelector(".symbol-RsFlttSS");
   const rowHeight = firstRow?.getBoundingClientRect().height || 30;
-  listContainer.scrollTop = Math.max(0, index * rowHeight);
-  await sleep(120);
-  const row = getWatchlistRowBySymbol(listContainer, symbol) || listContainer.querySelector(".symbol-RsFlttSS");
+  const step = Math.max(rowHeight * 10, 150);
+  const maxScrollTop = listContainer.scrollHeight;
+  for (let scrollTop = 0; scrollTop <= maxScrollTop; scrollTop += step) {
+    listContainer.scrollTop = scrollTop;
+    await sleep(120);
+    const row = getWatchlistRowBySymbol(listContainer, symbol);
+    if (row) {
+      return row;
+    }
+  }
+  return null;
+}
+
+async function selectWatchlistByScrollAndClick(listContainer, symbol) {
+  if (!listContainer) return false;
+  const row = (await scrollFindWatchlistRow(listContainer, symbol)) ||
+    listContainer.querySelector(".symbol-RsFlttSS");
   if (row) {
     return clickWatchlistRow(row);
   }
@@ -614,13 +637,16 @@ async function runBatchOnScreenerPage() {
     let targetRow = null;
 
     if (source === "watchlist") {
-      const currentRows = detectWatchlistRows(watchlistName, maxSymbols);
-      targetRow = currentRows[i];
-      const symbolFromRow = targetRow ? extractSymbolFromRow(targetRow) : "";
-      const inputSwitched = symbolFromRow ? setSymbolViaHeaderInput(symbolFromRow) : false;
+      const listContainer = getWatchlistListContainer();
+      targetRow = listContainer
+        ? getWatchlistRowBySymbol(listContainer, symbol)
+        : null;
+      if (!targetRow && listContainer) {
+        targetRow = await scrollFindWatchlistRow(listContainer, symbol);
+      }
+      const inputSwitched = setSymbolViaHeaderInput(symbol);
       if (!inputSwitched) {
-        const listContainer = getWatchlistListContainer();
-        const scrollClicked = await selectWatchlistByScrollAndClick(listContainer, symbolFromRow, i);
+        const scrollClicked = await selectWatchlistByScrollAndClick(listContainer, symbol);
         if (!scrollClicked) {
           const keyboardOk = await selectWatchlistByKeyboard(listContainer, i);
           if (!keyboardOk && targetRow) {
@@ -709,4 +735,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-
+})();
