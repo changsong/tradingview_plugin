@@ -603,11 +603,15 @@ async function runBatchOnScreenerPage() {
     watchlistName = watchlistNames[1];
   }
   if (!rows.length) {
+    rows = detectWatchlistRows(watchlistNames[2], maxSymbols);
+    watchlistName = watchlistNames[2];
+  }
+  if (!rows.length) {
     rows = detectScreenerRows(maxSymbols);
     source = "screener";
   }
   if (!rows.length) {
-    alert("未在当前页面找到 A股可交易 / 美股可交易 监视列表或筛选器表格。");
+    alert("未在当前页面找到 A股可交易 / 美股可交易 / 港股可交易 监视列表或筛选器表格。");
     isRunningBatch = false;
     return;
   }
