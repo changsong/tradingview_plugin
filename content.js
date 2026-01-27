@@ -594,7 +594,7 @@ async function runBatchOnScreenerPage() {
   const settings = await getSettings();
   const maxSymbols = settings.maxSymbols || 5000;
   const submitUrl = settings.submitUrl || "https://149.28.141.122/backtest";
-  const watchlistNames = ["A股可交易", "美股可交易"];
+  const watchlistNames = ["A股可交易", "美股可交易", "港股可交易"];
   let rows = detectWatchlistRows(watchlistNames[0], maxSymbols);
   let source = "watchlist";
   let watchlistName = watchlistNames[0];
@@ -717,6 +717,7 @@ async function runBatchOnScreenerPage() {
 
   try {
     const payload = JSON.stringify(results);
+    logWithTime("payload", payload);
     await fetch(submitUrl, {
       method: "POST",
       headers: {
