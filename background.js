@@ -2,7 +2,7 @@
 
 const DEFAULT_SETTINGS = {
   strategyName: "",
-  submitUrl: "https://149.28.141.122/backtest",
+  submitUrl: "https://www.zsihuo.com/backtest",
   maxSymbols: 50,
   delayBetweenSymbolsMs: 8000 // 根据你本地网络与 TradingView 反应调整
 };

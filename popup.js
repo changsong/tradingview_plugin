@@ -12,7 +12,7 @@ function loadSettings() {
     if (!settings) return;
     strategyNameInput.value = settings.strategyName || "";
     submitUrlInput.value =
-      settings.submitUrl || "https://149.28.141.122/backtest";
+      settings.submitUrl || "https://www.zsihuo.com/backtest";
     maxSymbolsInput.value = settings.maxSymbols || 50;
     delayInput.value = settings.delayBetweenSymbolsMs || 8000;
   });
@@ -22,7 +22,7 @@ function saveSettings() {
   const payload = {
     strategyName: strategyNameInput.value.trim(),
     submitUrl:
-      submitUrlInput.value.trim() || "https://149.28.141.122/backtest",
+      submitUrlInput.value.trim() || "https://www.zsihuo.com/backtest",
     maxSymbols: Number(maxSymbolsInput.value) || 50,
     delayBetweenSymbolsMs: Number(delayInput.value) || 8000
   };

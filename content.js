@@ -441,18 +441,18 @@ async function applyStrategyAndTimeframeInChart(settings) {
   // 因此这里使用简单 DOM 点击 + 选择文本方式作为示例（实际项目需要你根据当前 DOM 结构手工微调）。
 
   if (timeframe) {
-    // 打开时间框下拉
+  // 打开时间框下拉
     const tfButton = document.querySelector(
       '[data-name="timeframes-toolbar"] button, [data-name="timeframe"]'
     );
-    if (tfButton) {
-      tfButton.click();
+  if (tfButton) {
+    tfButton.click();
       await sleep(200);
-      const items = Array.from(document.querySelectorAll("div, span, button"));
+    const items = Array.from(document.querySelectorAll("div, span, button"));
       const target = items.find(
         (el) => el.innerText && el.innerText.trim() === timeframe
       );
-      if (target) target.click();
+    if (target) target.click();
     }
   }
 
@@ -565,7 +565,7 @@ function readBacktestResultForCurrentSymbol(symbol) {
     const valueEl =
       valueEls.find((el) => normalize(el.innerText)) || valueEls[0];
     return normalize(valueEl?.innerText);
-  }
+        }
 
   const totalPnL = readMetricCard("总盈亏");
   const maxDrawdown = readMetricCard("最大股权回撤");
@@ -593,7 +593,7 @@ async function runBatchOnScreenerPage() {
 
   const settings = await getSettings();
   const maxSymbols = settings.maxSymbols || 5000;
-  const submitUrl = settings.submitUrl || "https://149.28.141.122/backtest";
+  const submitUrl = settings.submitUrl || "https://www.zsihuo.com/backtest";
   const watchlistNames = ["A股可交易", "美股可交易", "港股可交易"];
   let rows = detectWatchlistRows(watchlistNames[0], maxSymbols);
   let source = "watchlist";
@@ -623,7 +623,7 @@ async function runBatchOnScreenerPage() {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const symbol = extractSymbolFromRow(row) || getTextContent(row).split(/\s+/)[0];
-      if (symbol) symbols.push(symbol);
+    if (symbol) symbols.push(symbol);
     }
   }
 
@@ -666,11 +666,11 @@ async function runBatchOnScreenerPage() {
         }
       }
     } else {
-      // 简化实现：直接在当前 tab 中切换 symbol，避免频繁开新 tab（更稳定）
-      // TradingView 支持在图表上方的代码输入框切换标的，通过 DOM 操作该输入框：
+    // 简化实现：直接在当前 tab 中切换 symbol，避免频繁开新 tab（更稳定）
+    // TradingView 支持在图表上方的代码输入框切换标的，通过 DOM 操作该输入框：
       if (!setSymbolViaHeaderInput(symbol)) {
-        // 如果当前不是图表页，而是筛选器页，可以尝试点击行打开图表
-        rows[i].click();
+      // 如果当前不是图表页，而是筛选器页，可以尝试点击行打开图表
+      rows[i].click();
       }
     }
 
@@ -698,7 +698,7 @@ async function runBatchOnScreenerPage() {
           logWithTime(`${symbol} 低于阈值，已点击删除`);
         } else {
           logWithTime(`${symbol} 低于阈值，但未找到删除按钮`);
-        }
+  }
       } else {
         logWithTime(`${symbol} 低于阈值，已标记`);
       }
@@ -734,8 +734,8 @@ async function runBatchOnScreenerPage() {
     console.error(error);
     alert("批量回测完成，但提交失败，请查看控制台。");
   } finally {
-    isRunningBatch = false;
-  }
+      isRunningBatch = false;
+    }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
