@@ -1,3 +1,8 @@
+
+
+
+
+
 // background.js - 负责与 popup、content script 通信并管理任务状态
 
 const DEFAULT_SETTINGS = {

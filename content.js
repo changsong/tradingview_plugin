@@ -637,7 +637,11 @@ async function runBatchOnScreenerPage() {
   const results = [];
   const parsePercentValue = (value) => {
     if (!value) return NaN;
-    const match = String(value).match(/-?\d+(?:[.,]\d+)?/);
+    const normalized = String(value)
+      .replace(/[−–—]/g, "-")
+      .replace(/[＋]/g, "+")
+      .replace(/[％]/g, "%");
+    const match = normalized.match(/[+-]?\d+(?:[.,]\d+)?/);
     if (!match) return NaN;
     return parseFloat(match[0].replace(/,/g, ""));
   };
