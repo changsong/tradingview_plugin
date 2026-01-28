@@ -595,6 +595,11 @@ async function runBatchOnScreenerPage() {
   const maxSymbols = settings.maxSymbols || 5000;
   const submitUrl = settings.submitUrl || "https://www.zsihuo.com/backtest";
   const watchlistNames = ["A股可交易", "美股可交易", "港股可交易"];
+  const watchlistMarketMap = {
+    A股可交易: "CN",
+    美股可交易: "US",
+    港股可交易: "HK"
+  };
   let rows = detectWatchlistRows(watchlistNames[0], maxSymbols);
   let source = "watchlist";
   let watchlistName = watchlistNames[0];
@@ -634,6 +639,7 @@ async function runBatchOnScreenerPage() {
   }
 
   const { delayBetweenSymbolsMs = 5000 } = settings;
+  const market = source === "watchlist" ? watchlistMarketMap[watchlistName] || "" : "";
   const results = [];
   const parsePercentValue = (value) => {
     if (!value) return NaN;
@@ -707,9 +713,10 @@ async function runBatchOnScreenerPage() {
         logWithTime(`${symbol} 低于阈值，已标记`);
       }
     }
-    if (!Number.isNaN(totalPnLPercent) && totalPnLPercent > 12) {
+    if (!Number.isNaN(totalPnLPercent) && totalPnLPercent >= 12) {
       results.push({
         symbol: result.symbol,
+        market: market,
         totalPnL: result.totalPnL,
         maxEquityDrawdown: result.maxEquityDrawdown,
         totalTrades: result.totalTrades,
