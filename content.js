@@ -535,6 +535,16 @@ function readBacktestResultForCurrentSymbol(symbol) {
       .replace(/\s+/g, " ")
       .trim();
 
+  function readStrategyName() {
+    const button = document.querySelector("[data-strategy-title]");
+    const title = normalize(button?.getAttribute("data-strategy-title") || "");
+    if (title) return title;
+    const fallback = document.querySelector(
+      ".strategyGroup-rQLA_iPz [role='button'], [data-name='strategy-group'] [role='button']"
+    );
+    return normalize(fallback?.innerText);
+  }
+
   function readMetricCard(titleText) {
     const titles = Array.from(document.querySelectorAll(".title-nEWm7_ye"));
     const titleEl = titles.find((el) => normalize(el.innerText) === titleText);
@@ -573,6 +583,7 @@ function readBacktestResultForCurrentSymbol(symbol) {
   const winningTrades = readMetricCard("盈利交易");
   const profitFactor = readMetricCard("盈利因子");
 
+  result.strategyName = readStrategyName();
   result.totalPnL = totalPnL.percent || totalPnL.value;
   result.maxEquityDrawdown = maxDrawdown.percent || maxDrawdown.value;
   result.totalTrades = totalTrades.value;
@@ -717,6 +728,7 @@ async function runBatchOnScreenerPage() {
       results.push({
         symbol: result.symbol,
         market: market,
+        strategyName: result.strategyName,
         totalPnL: result.totalPnL,
         maxEquityDrawdown: result.maxEquityDrawdown,
         totalTrades: result.totalTrades,
