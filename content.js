@@ -709,7 +709,8 @@ async function runBatchOnScreenerPage() {
     const result = readBacktestResultForCurrentSymbol(symbol);
     const totalPnLPercent = parsePercentValue(result.totalPnL);
     const sharpeRatio = parseFloat(result.sharpeRatio);
-    if (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 13 && sharpeRatio < 1) {
+    const hasSharpe = Number.isFinite(sharpeRatio);
+    if (!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent < 13 && sharpeRatio < 1) {
       if (source === "watchlist" && targetRow) {
         await ensureWatchlistSelected(result.symbol || symbol, targetRow, i);
         const deleteBtn = targetRow.querySelector(
@@ -725,7 +726,7 @@ async function runBatchOnScreenerPage() {
         logWithTime(`${symbol} 低于阈值，已标记`);
       }
     }
-    if (!Number.isNaN(totalPnLPercent) && totalPnLPercent >= 13 && sharpeRatio >= 1) {
+    if (!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent >= 13 && sharpeRatio >= 1) {
       results.push({
         symbol: result.symbol,
         market: market,
@@ -739,7 +740,7 @@ async function runBatchOnScreenerPage() {
       });
     }
     logWithTime(
-      `${result.symbol} PnL=${result.totalPnL} (match=${totalPnLPercent > 12})`
+      `${result.symbol} PnL=${result.totalPnL} Sharpe=${result.sharpeRatio} (match=${totalPnLPercent >= 13 && hasSharpe && sharpeRatio >= 1})`
     );
   }
 
