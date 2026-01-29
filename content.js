@@ -662,6 +662,22 @@ async function runBatchOnScreenerPage() {
     if (!match) return NaN;
     return parseFloat(match[0].replace(/,/g, ""));
   };
+  const parseNumberValue = (value) => {
+    if (!value) return NaN;
+    let normalized = String(value)
+      .replace(/[−–—]/g, "-")
+      .replace(/[＋]/g, "+")
+      .replace(/\s+/g, "")
+      .replace(/[％]/g, "%");
+    if (normalized.includes(",") && !normalized.includes(".")) {
+      normalized = normalized.replace(/,/g, ".");
+    } else {
+      normalized = normalized.replace(/,/g, "");
+    }
+    const match = normalized.match(/[+-]?\d+(?:\.\d+)?/);
+    if (!match) return NaN;
+    return parseFloat(match[0]);
+  };
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
@@ -708,9 +724,12 @@ async function runBatchOnScreenerPage() {
 
     const result = readBacktestResultForCurrentSymbol(symbol);
     const totalPnLPercent = parsePercentValue(result.totalPnL);
-    const sharpeRatio = parseFloat(result.sharpeRatio);
+    const sharpeRatio = parseNumberValue(result.sharpeRatio);
     const hasSharpe = Number.isFinite(sharpeRatio);
-    if (!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent < 13 && sharpeRatio < 1) {
+    const shouldDelete =
+      (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 13) ||
+      (hasSharpe && sharpeRatio < 1);
+    if (shouldDelete) {
       if (source === "watchlist" && targetRow) {
         await ensureWatchlistSelected(result.symbol || symbol, targetRow, i);
         const deleteBtn = targetRow.querySelector(
@@ -740,7 +759,7 @@ async function runBatchOnScreenerPage() {
       });
     }
     logWithTime(
-      `${result.symbol} PnL=${result.totalPnL} Sharpe=${result.sharpeRatio} (match=${totalPnLPercent >= 13 && hasSharpe && sharpeRatio >= 1})`
+      `${result.symbol} PnL=${result.totalPnL} Sharpe=${result.sharpeRatio} (parsedPnL=${totalPnLPercent} parsedSharpe=${hasSharpe ? sharpeRatio : "NaN"} match=${!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent >= 13 && sharpeRatio >= 1} delete=${shouldDelete})`
     );
   }
 
