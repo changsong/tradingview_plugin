@@ -8,6 +8,8 @@
 const DEFAULT_SETTINGS = {
   strategyName: "",
   submitUrl: "https://www.zsihuo.com/backtest",
+  minPnLPercent: 13,
+  minSharpeRatio: 1.2,
   maxSymbols: 50,
   delayBetweenSymbolsMs: 8000 // 根据你本地网络与 TradingView 反应调整
 };

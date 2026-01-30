@@ -726,9 +726,15 @@ async function runBatchOnScreenerPage() {
     const totalPnLPercent = parsePercentValue(result.totalPnL);
     const sharpeRatio = parseNumberValue(result.sharpeRatio);
     const hasSharpe = Number.isFinite(sharpeRatio);
+    const minPnLPercent = Number.isFinite(Number(settings.minPnLPercent))
+      ? Number(settings.minPnLPercent)
+      : 13;
+    const minSharpeRatio = Number.isFinite(Number(settings.minSharpeRatio))
+      ? Number(settings.minSharpeRatio)
+      : 1.2;
     const shouldDelete =
-      (!Number.isNaN(totalPnLPercent) && totalPnLPercent < 13) ||
-      (hasSharpe && sharpeRatio < 1);
+      (!Number.isNaN(totalPnLPercent) && totalPnLPercent < minPnLPercent) ||
+      (hasSharpe && sharpeRatio < minSharpeRatio);
     if (shouldDelete) {
       if (source === "watchlist" && targetRow) {
         await ensureWatchlistSelected(result.symbol || symbol, targetRow, i);
@@ -745,7 +751,12 @@ async function runBatchOnScreenerPage() {
         logWithTime(`${symbol} 低于阈值，已标记`);
       }
     }
-    if (!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent >= 13 && sharpeRatio >= 1) {
+    if (
+      !Number.isNaN(totalPnLPercent) &&
+      hasSharpe &&
+      totalPnLPercent >= minPnLPercent &&
+      sharpeRatio >= minSharpeRatio
+    ) {
       results.push({
         symbol: result.symbol,
         market: market,
@@ -759,7 +770,7 @@ async function runBatchOnScreenerPage() {
       });
     }
     logWithTime(
-      `${result.symbol} PnL=${result.totalPnL} Sharpe=${result.sharpeRatio} (parsedPnL=${totalPnLPercent} parsedSharpe=${hasSharpe ? sharpeRatio : "NaN"} match=${!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent >= 13 && sharpeRatio >= 1} delete=${shouldDelete})`
+      `${result.symbol} PnL=${result.totalPnL} Sharpe=${result.sharpeRatio} (parsedPnL=${totalPnLPercent} parsedSharpe=${hasSharpe ? sharpeRatio : "NaN"} thresholdPnL=${minPnLPercent} thresholdSharpe=${minSharpeRatio} match=${!Number.isNaN(totalPnLPercent) && hasSharpe && totalPnLPercent >= minPnLPercent && sharpeRatio >= minSharpeRatio} delete=${shouldDelete})`
     );
   }
 

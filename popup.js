@@ -4,6 +4,8 @@ const strategyNameInput = document.getElementById("strategyName");
 const submitUrlInput = document.getElementById("submitUrl");
 const maxSymbolsInput = document.getElementById("maxSymbols");
 const delayInput = document.getElementById("delayBetweenSymbolsMs");
+const minPnLPercentInput = document.getElementById("minPnLPercent");
+const minSharpeRatioInput = document.getElementById("minSharpeRatio");
 const saveBtn = document.getElementById("saveBtn");
 const startBtn = document.getElementById("startBtn");
 
@@ -15,6 +17,14 @@ function loadSettings() {
       settings.submitUrl || "https://www.zsihuo.com/backtest";
     maxSymbolsInput.value = settings.maxSymbols || 50;
     delayInput.value = settings.delayBetweenSymbolsMs || 8000;
+    minPnLPercentInput.value =
+      Number.isFinite(Number(settings.minPnLPercent))
+        ? settings.minPnLPercent
+        : 13;
+    minSharpeRatioInput.value =
+      Number.isFinite(Number(settings.minSharpeRatio))
+        ? settings.minSharpeRatio
+        : 1.2;
   });
 }
 
@@ -24,7 +34,9 @@ function saveSettings() {
     submitUrl:
       submitUrlInput.value.trim() || "https://www.zsihuo.com/backtest",
     maxSymbols: Number(maxSymbolsInput.value) || 50,
-    delayBetweenSymbolsMs: Number(delayInput.value) || 8000
+    delayBetweenSymbolsMs: Number(delayInput.value) || 8000,
+    minPnLPercent: Number(minPnLPercentInput.value) || 13,
+    minSharpeRatio: Number(minSharpeRatioInput.value) || 1.2
   };
 
   chrome.runtime.sendMessage(
